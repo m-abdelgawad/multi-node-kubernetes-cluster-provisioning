@@ -129,7 +129,7 @@
 
     * Since I am using a master node with only 1 CPU and 1GB memory. The `kubeadm init` command will fail. So, we need to tell it to ignore the validation by using two more parameters: `--ignore-preflight-errors=NumCPU  --ignore-preflight-errors=Mem`
 
-    * The Final kubeadm command should be: `kubeadm init --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address=157.230.12.200`
+    * The Final kubeadm command should be: `kubeadm init --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address=157.230.12.200 --ignore-preflight-errors=NumCPU  --ignore-preflight-errors=Mem`
 
 <img src="readme_files/14.jpg">
 
@@ -168,6 +168,10 @@
 <img src="readme_files/18-1.jpg">
 <img src="readme_files/18-2.jpg">
 
+19. Optionally, we can define a role for the worker nodes using the following command: `kubectl label node node_name node-role.kubernetes.io/worker=worker`.
+
+<img src="readme_files/19.jpg">
+
 ### Expected Issues
 
 1. When I executed any kubectl command, I get the below error: `dial tcp 157.230.12.200:6443: connect: connection refused`. 
@@ -205,6 +209,7 @@ Mohamed AbdelGawad Ibrahim - [@m-abdelgawad](https://www.linkedin.com/in/m-abdel
 * https://discuss.kubernetes.io/t/kubeadm-init-validation-error/11706
 * https://github.com/kubernetes/kubeadm/issues/2767
 * https://stackoverflow.com/questions/63367988/kubernetes-worker-node-is-notready-due-to-cni-plugin-not-initialized
+* https://stackoverflow.com/questions/48854905/how-to-add-roles-to-nodes-in-kubernetes
 
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
