@@ -18,7 +18,7 @@
   <summary>Table of Contents</summary>
   <ol>
     <li><a href="#about-the-project">About The Project</a></li>
-    <li><a href="#read-this-first">Read This First</li>
+    <li><a href="#introduction">Introduction</li>
     <li><a href="#detailed-steps">Detailed Steps</a></li>
     <li>
       <a href="#summary">Summary</a>
@@ -44,16 +44,18 @@
 * Version: v1.0.0
 * Organization Department: Technology
 
-## Read This First
+## Introduction
 
 In this written guide, I documeneted my hands-on experience while deploying my own kuberentes cluster on three ubuntu servers running Ubuntu 20.04.6 LTS provided on the cloud by DigitalOcean.
 
-### This guide serves two primary purposes:
+**This guide consists of two primary sections:**
 
-#### Detailed Steps
+**1. Detailed Steps**
+
 The "Detailed Steps" section provides comprehensive documentation of the procedures involved in deploying a Kubernetes cluster. It references and explains each step, making it particularly valuable for individuals creating their first Kubernetes cluster.
 
-#### Summary
+**2. Summary**
+
 The "Summary" section, consisting of `Master Node Steps` and `Worker Node Steps` offers a concise documentation of the necessary actions to quickly establish and operate your Kubernetes cluster. This streamlined approach is intended to facilitate a quick and efficient setup process.
 
 I recommend following the "Detailed Steps" for a thorough understanding of the deployment process, while the "Summary" section can be used as a quick reference guide for experienced users. I hope this documentation enhances your Kubernetes deployment experience.
