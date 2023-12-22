@@ -17,13 +17,17 @@
 <details>
   <summary>Table of Contents</summary>
   <ol>
+    <li><a href="#about-the-project">About The Project</a></li>
+    <li><a href="#read-this-first">Read This First</li>
+    <li><a href="#detailed-steps">Detailed Steps</a></li>
     <li>
-      <a href="#about-the-project">About The Project</a>
+      <a href="#summary">Summary</a>
       <ul>
-        <li><a href="#steps">Steps</a></li>
-        <li><a href="#expected-issues">Expected Issues</a></li>
+        <li><a href="#master-node-steps">Master Node Steps</a></li>
+        <li><a href="#worker-node-steps">Worker Node Steps</a></li>
       </ul>
     </li>
+    <li><a href="#expected-issues">Expected Issues</a></li>
     <li><a href="#contact">Contact</a></li>
     <li><a href="#references">References</a></li>
   </ol>
@@ -40,8 +44,13 @@
 * Version: v1.0.0
 * Organization Department: Technology
 
+## Read This First
 
-### Steps
+
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+## Detailed Steps
 
 1. Open the <a href="https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/#installing-runtime">documentation</a>:
 
@@ -127,12 +136,6 @@
 
     * where `10.244.0.0/16` is a choosen network range and `157.230.12.200` is the IP address of the master node. 
 
-    * Since I am using a master node with only 1 CPU and 1GB memory. The `kubeadm init` command will fail. So, we need to tell it to ignore the validation by using two more parameters: `--ignore-preflight-errors=NumCPU  --ignore-preflight-errors=Mem`
-
-    * The Final kubeadm command should be: `kubeadm init --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address=157.230.12.200 --ignore-preflight-errors=NumCPU  --ignore-preflight-errors=Mem`
-
-<img src="readme_files/14.jpg">
-
 <img src="readme_files/14-1.jpg">
 
 15. We've successfully initiated the cluster using kubeadm. At the end of installation, there are some steps left to complete the installation.
@@ -172,26 +175,277 @@
 
 <img src="readme_files/19.jpg">
 
-### Expected Issues
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-1. When I executed any kubectl command, I get the below error: `dial tcp 157.230.12.200:6443: connect: connection refused`. 
+## Summary
 
-    * After investigating the issue, it turned out to be related to AppArmor. 
-    * To determine that, we can run `grep audit /var/log/kern.log`.
-    * After searching, I found out that I should modify the `/etc/containerd/config.toml` to the below config. Then restart containerd, apparmor and kubelet.
+### Master Node Steps
+1. Installing container runtime
+    * Forwarding IPv4 and letting iptables see bridged traffic
+      ```
+      cat <<EOF | sudo tee /etc/modules-load.d/k8s.conf
+      overlay
+      br_netfilter
+      EOF
 
-```
-version = 2
-[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
-  runtime_type = "io.containerd.runc.v2"
-  [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options]
-    SystemdCgroup = true
-```
+      sudo modprobe overlay
+      sudo modprobe br_netfilter
 
-<img src="readme_files/err-1.jpg">
+      # sysctl params required by setup, params persist across reboots
+      cat <<EOF | sudo tee /etc/sysctl.d/k8s.conf
+      net.bridge.bridge-nf-call-iptables  = 1
+      net.bridge.bridge-nf-call-ip6tables = 1
+      net.ipv4.ip_forward                 = 1
+      EOF
 
-2. At any point, if you feel that you want to reset the installation process, run `kubeadm reset` and follow the steps printed out at the end of the execution.
+      # Apply sysctl params without reboot
+      sudo sysctl --system
+      ```
 
+    * Install containerd
+      ```
+      for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do sudo apt-get remove $pkg; done
+
+      # Add Docker's official GPG key:
+      sudo apt-get update
+      sudo apt-get install ca-certificates curl gnupg
+      sudo install -m 0755 -d /etc/apt/keyrings
+      curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+      sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+      # Add the repository to Apt sources:
+      echo \
+        "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+        $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+        sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+      sudo apt-get update
+
+      systemctl status containerd.service
+      ```
+    
+    * Configuring the systemd cgroup driver in containerd configurations. Open `vim /etc/containerd/config.toml` then clear all the content using `:%d`, and finally add:
+
+      <pre>
+      [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
+      &nbsp;&nbsp;[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options]
+          SystemdCgroup = true
+      </pre>
+
+    * Restart containerd services for changes to reflect:
+      ```
+      systemctl restart containerd.service
+      ```
+2. Installing kubeadm, kubelet and kubectl
+
+    * Run the following commands:
+        ```
+        sudo apt-get update
+        # apt-transport-https may be a dummy package; if so, you can skip that package
+        sudo apt-get install -y apt-transport-https ca-certificates curl gpg
+
+        curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.29/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+        # This overwrites any existing configuration in /etc/apt/sources.list.d/kubernetes.list
+        echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
+
+        sudo apt-get update
+        sudo apt-get install -y kubelet kubeadm kubectl
+        sudo apt-mark hold kubelet kubeadm kubectl
+        ```
+
+3. Install cluster on the master node using kubeadm:
+
+    * Run the below command and set the `--apiserver-advertise-address` flag to the master node IP:
+        ```
+        kubeadm init --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address=157.230.12.200
+        ```
+
+4. To start using your cluster, you need to run the following as a regular user:
+
+    * Instructions:
+        ```
+        mkdir -p $HOME/.kube
+        sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+        sudo chown $(id -u):$(id -g) $HOME/.kube/config
+        ```
+5. Deploy a pod network to the cluster:
+
+    * Instructions:
+        ```
+        kubectl apply -f https://github.com/weaveworks/weave/releases/download/v2.8.1/weave-daemonset-k8s.yaml
+        ```
+
+    * Edit the the deployment of weave-net and set the variable IPALLOC_RANGE to the same network that we used in the kubeadm init command. Run:
+        ```
+        kubectl edit ds weave-net -n kube-system
+        ```
+    * Then add an environment variables to the container `weave`:
+        ```
+        - name: IPALLOC_RANGE
+          value: 10.244.0.0/16
+        ```
+        <img src="readme_files/17-4.jpg">
+
+6. Run below command to test the status of the master node and deployed pods. The status of the master node should be `Ready` and the status of the deployed pods should be `Running`, all of them should be `Ready`, and no `Restarts`.
+
+      * Instructions:
+          ```
+          kubectl get nodes
+          watch kubectl get pods -A
+          ```
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+### Worker Node Steps
+1. Installing container runtime
+    * Forwarding IPv4 and letting iptables see bridged traffic
+      ```
+      cat <<EOF | sudo tee /etc/modules-load.d/k8s.conf
+      overlay
+      br_netfilter
+      EOF
+
+      sudo modprobe overlay
+      sudo modprobe br_netfilter
+
+      # sysctl params required by setup, params persist across reboots
+      cat <<EOF | sudo tee /etc/sysctl.d/k8s.conf
+      net.bridge.bridge-nf-call-iptables  = 1
+      net.bridge.bridge-nf-call-ip6tables = 1
+      net.ipv4.ip_forward                 = 1
+      EOF
+
+      # Apply sysctl params without reboot
+      sudo sysctl --system
+      ```
+
+    * Install containerd
+      ```
+      for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do sudo apt-get remove $pkg; done
+
+      # Add Docker's official GPG key:
+      sudo apt-get update
+      sudo apt-get install ca-certificates curl gnupg
+      sudo install -m 0755 -d /etc/apt/keyrings
+      curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+      sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+      # Add the repository to Apt sources:
+      echo \
+        "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+        $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+        sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+      sudo apt-get update
+
+      sudo apt-get install containerd.io
+
+      systemctl status containerd.service
+      ```
+    
+    * Configuring the systemd cgroup driver in containerd configurations. Open `vim /etc/containerd/config.toml` then clear all the content using `:%d`, and finally add:
+
+      <pre>
+      [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
+      &nbsp;&nbsp;[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options]
+          SystemdCgroup = true
+      </pre>
+
+    * Restart containerd services for changes to reflect:
+      ```
+      systemctl restart containerd.service
+      ```
+2. Installing kubeadm, kubelet and kubectl
+
+    * Run the following commands:
+        ```
+        sudo apt-get update
+        # apt-transport-https may be a dummy package; if so, you can skip that package
+        sudo apt-get install -y apt-transport-https ca-certificates curl gpg
+
+        curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.29/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+        # This overwrites any existing configuration in /etc/apt/sources.list.d/kubernetes.list
+        echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
+
+        sudo apt-get update
+        sudo apt-get install -y kubelet kubeadm kubectl
+        sudo apt-mark hold kubelet kubeadm kubectl
+        ```
+3. Join the cluster.
+
+    * When you installed the cluster on the master node, a `kubeadm join` command was printed out with a token for worker nodes to join the cluster. Run this command on the worker nodes:
+
+        ```
+        kubeadm join 157.230.12.200:6443 --token 9sn7ve.bthlkjj36vq96xot \
+        --discovery-token-ca-cert-hash YOUR-TOKEN-SHOULD-BE-HERE
+        ```
+
+4. On the master node, verify that the node was added to the cluster:
+
+    * Run below command. The status of the new worker node should be `Ready`.
+        ```
+        kubectl get nodes
+        ```
+
+5. The new node will have a role of `<none>`. A node role is just a label with the format `node-role.kubernetes.io/<role>`. You can set the role of the new worker node using:
+    ```
+    kubectl label node node_name node-role.kubernetes.io/worker=worker
+    ```
+
+6. Run a test pod on the new worker node to make sure that everything is working as expected.
+    * Create a `test_pod_worker1.yaml` file to deploy a test nginx pod to the new worker node `worker1`:
+        ```
+        apiVersion: v1
+        kind: Pod
+        metadata:
+          name: nginx-worker1
+        spec:
+          containers:
+          - name: nginx
+            image: nginx
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                    - worker1
+        ```
+    
+    * Then, apply the configuration to create the test pod on the new worker node `worker1`:
+        ```
+        kubectl apply -f test_pod_worker1.yaml
+        ```
+    
+7. To connect the kubectl utility on the worker node to the cluster, you need to copy the `~/.kube/config` file to your worker node on the same path.
+
+    * On the master node, copy the configuration file content:
+      ```
+      cat ~/.kube/config
+      ```
+    * On the worker node, create the `.kube` directory then create the `config` file:
+      ```
+      mkdir -p ~/.kube/
+      vim ~/.kube/config
+      ```
+    * By now, the kubectl utility should be connected to the cluster and you can verify that by running any test command, such as
+      ```
+      kubectl get nodes
+      ```
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+## Expected Issues
+
+1. At any point, if you feel that you want to reset the installation process, run `kubeadm reset` and follow the steps printed out at the end of the execution.
+
+2. If the master node is below minimum requirements, the `kubeadm init` command will fail. So, we need to tell it to ignore the validation by using two more parameters: `--ignore-preflight-errors=NumCPU  --ignore-preflight-errors=Mem`. However, it's vital to know that if the master node is below 2G of Ram, you will most likely face serverl issues and the cluster won't operate as expected.
+
+    * The Final kubeadm command should be: `kubeadm init --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address=157.230.12.200 --ignore-preflight-errors=NumCPU  --ignore-preflight-errors=Mem`
+
+<img src="readme_files/14.jpg">
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
