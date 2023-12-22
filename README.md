@@ -417,6 +417,11 @@
         ```
         kubectl apply -f test_pod_worker1.yaml
         ```
+
+    * To get the pods running on specific node, run:
+        ```
+        kubectl get pods --field-selector spec.nodeName=worker1
+        ```
     
 7. To connect the kubectl utility on the worker node to the cluster, you need to copy the `~/.kube/config` file to your worker node on the same path.
 
