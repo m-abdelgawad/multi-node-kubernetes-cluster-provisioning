@@ -38,7 +38,7 @@
 <!-- ABOUT THE PROJECT -->
 ## About The Project
 
-<img src="readme_files/cover.jpg" alt="Cover Image">
+<img src="readme_files/new-cover.jpg" alt="Cover Image">
 
 * Project Name: Multi-Node Kubernetes Cluster Provisioning
 * Version: v1.0.0
@@ -157,11 +157,10 @@
 
 <img src="readme_files/17.jpg">
 
-<img src="readme_files/17-1.jpg">
+<img src="readme_files/new-cover.jpg">
 
 <img src="readme_files/17-2.jpg">
 
-<img src="readme_files/17-3.jpg">
 
 <img src="readme_files/17-4.jpg">
 
@@ -169,7 +168,7 @@
 
 <img src="readme_files/18.jpg">
 <img src="readme_files/18-1.jpg">
-<img src="readme_files/18-2.jpg">
+<img src="readme_files/new-cover.jpg">
 
 19. Optionally, we can define a role for the worker nodes using the following command: `kubectl label node node_name node-role.kubernetes.io/worker=worker`.
 
