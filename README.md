@@ -27,6 +27,7 @@
         <li><a href="#worker-node-steps">Worker Node Steps</a></li>
       </ul>
     </li>
+    <li><a href="#enable-swap">Enable Swap</a></li>
     <li><a href="#expected-issues">Expected Issues</a></li>
     <li><a href="#contact">Contact</a></li>
     <li><a href="#references">References</a></li>
@@ -451,6 +452,78 @@ I recommend following the "Detailed Steps" for a thorough understanding of the d
       ```
       kubectl get nodes
       ```
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+## Enable Swap
+
+By default, Kuberenetes doesn't allow using swap on its nodes. Starting from Kubernetes 1.28, a <a href="https://kubernetes.io/blog/2023/08/24/swap-linux-beta/">beta support for using swap on Linux</a> was added. 
+
+I searched a lot but couldn't find a detailed guide to enable the swap. However, elhamdulillah, I could do it eventually. Here are the required steps:
+
+1. Provision swap with selected size (in this example, 4G) on the required nodes. Add and execute the below bash script `vim create_swap.sh`:
+```
+#!/bin/bash
+
+swapon --show
+free -h
+df -h
+sudo fallocate -l 4G /swapfile
+sudo ls -lh /swapfile
+sudo chmod 600 /swapfile
+sudo ls -lh /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+sudo swapon --show
+free -h
+sudo cp /etc/fstab /etc/fstab.bak
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+
+echo "Initial swappiness:"
+cat /proc/sys/vm/swappiness
+sudo sh -c "echo 'vm.swappiness=90' >> /etc/sysctl.conf"
+sudo sysctl vm.swappiness=90
+echo "Final swappiness:"
+cat /proc/sys/vm/swappiness
+
+echo "Initial cache pressure:"
+cat /proc/sys/vm/vfs_cache_pressure
+sudo sh -c "echo 'vm.vfs_cache_pressure=50' >> /etc/sysctl.conf"
+sudo sysctl vm.vfs_cache_pressure=50
+echo "Final cache pressure:"
+cat /proc/sys/vm/vfs_cache_pressure
+```
+
+2. Enable swap in the kubelet configurations. 
+
+    * First, open the configurations file of kubelet: 
+
+      `vim /var/lib/kubelet/config.yaml`
+
+    * Add the below lines at the end of the file:
+
+      ```
+      failSwapOn: false
+      featureGates:
+        NodeSwap: true
+      memorySwap:
+        swapBehavior: LimitedSwap
+      ```
+
+    * Restart systemd daemon and the kubelet service:
+
+      ```
+      systemctl daemon-reload ; systemctl restart kubelet.service
+      ```
+
+    * Check the status of the kubelet service; it should be active and running now:
+
+      ```
+      systemctl status kubelet.service
+      ```
+
+<img src="readme_files/after-swap-on.jpg">
+
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
