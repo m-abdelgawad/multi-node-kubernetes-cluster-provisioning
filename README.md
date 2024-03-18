@@ -232,7 +232,7 @@ I recommend following the "Detailed Steps" for a thorough understanding of the d
         $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
         sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
       sudo apt-get update
-
+      sudo apt-get install containerd
       systemctl status containerd.service
       ```
     
